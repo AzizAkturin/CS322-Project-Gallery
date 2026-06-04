@@ -8,22 +8,27 @@ declare global {
 function createClientPromise(): Promise<MongoClient> {
   const uri = process.env.MONGODB_URI;
   if (!uri) {
-    // Return a rejected promise so the API route's try/catch returns JSON,
-    // instead of throwing here which produces an HTML 500 page.
     return Promise.reject(new Error('MONGODB_URI is not set. Add it to .env.local.'));
   }
   return new MongoClient(uri).connect();
 }
 
-let clientPromise: Promise<MongoClient>;
-
-if (process.env.NODE_ENV === 'development') {
-  if (!global._mongoClientPromise) {
-    global._mongoClientPromise = createClientPromise();
+// In development, cache the connection on the global so hot-reloads don't
+// spawn a new connection every time. If the connection fails, we clear the
+// cache so the next request gets a fresh attempt rather than a cached rejection.
+export default function getClient(): Promise<MongoClient> {
+  if (process.env.NODE_ENV !== 'development') {
+    return createClientPromise();
   }
-  clientPromise = global._mongoClientPromise;
-} else {
-  clientPromise = createClientPromise();
-}
 
-export default clientPromise;
+  if (!global._mongoClientPromise) {
+    const promise = createClientPromise();
+    global._mongoClientPromise = promise;
+    promise.catch(() => {
+      if (global._mongoClientPromise === promise) {
+        global._mongoClientPromise = undefined;
+      }
+    });
+  }
+  return global._mongoClientPromise;
+}

@@ -13,6 +13,7 @@ export interface Project {
   videoUrl?: string;
   imageUrl?: string;
   createdAt: Date;
+  status?: 'pending' | 'approved';
 }
 
 export type ProjectWithId = Project & { _id: string };

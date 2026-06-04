@@ -78,7 +78,7 @@ export default function GalleryPage() {
 
       {/* Header */}
       <div className="mb-10">
-        <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-400 mb-2">
+        <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-500 mb-2">
           &gt; University of Oregon / CS322
         </p>
         <h1 className="font-instrument-serif text-5xl text-neutral-900 leading-tight mb-2">
@@ -114,7 +114,7 @@ export default function GalleryPage() {
             className={`inline-flex items-center h-[28px] px-3 font-mono text-[0.7rem] uppercase tracking-[0.12em] border transition-colors ${
               activeTopic === 'All'
                 ? 'bg-neutral-900 text-white border-neutral-900'
-                : 'bg-white text-neutral-600 border-neutral-300 hover:border-neutral-600'
+                : 'bg-white text-neutral-700 border-neutral-300 hover:border-neutral-900 hover:text-neutral-900'
             }`}
           >
             All
@@ -129,7 +129,7 @@ export default function GalleryPage() {
                 className={`inline-flex items-center h-[28px] px-3 font-mono text-[0.7rem] uppercase tracking-[0.12em] border transition-colors ${
                   isActive
                     ? colors?.filter ?? 'bg-neutral-900 text-white border-neutral-900'
-                    : 'bg-white text-neutral-600 border-neutral-300 hover:border-neutral-600'
+                    : 'bg-white text-neutral-700 border-neutral-300 hover:border-neutral-900 hover:text-neutral-900'
                 }`}
               >
                 {topic}
@@ -146,7 +146,7 @@ export default function GalleryPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="py-32 text-center">
-          <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-400 mb-4">
+          <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-500 mb-4">
             {search || activeTopic !== 'All' ? 'No results' : 'No projects yet'}
           </p>
           <p className="font-instrument-serif text-2xl text-neutral-700 mb-6">

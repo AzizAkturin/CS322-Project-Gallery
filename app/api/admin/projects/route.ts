@@ -5,10 +5,10 @@ import { Project } from '@/lib/types';
 const DB = 'cs322gallery';
 const COLL = 'projects';
 
-// Escape regex metacharacters so user search is treated as a literal string,
-// preventing ReDoS via crafted patterns like (a+)+
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function checkAuth(request: NextRequest) {
+  const passphrase = request.headers.get('x-admin-passphrase') ?? '';
+  const correct = process.env.ADMIN_PASSPHRASE;
+  return correct && passphrase === correct;
 }
 
 function isSafeUrl(value: unknown): boolean {
@@ -22,38 +22,18 @@ function isSafeUrl(value: unknown): boolean {
 }
 
 export async function GET(request: NextRequest) {
+  if (!checkAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search') ?? '';
-    const topic = searchParams.get('topic') ?? '';
-
     const client = await clientPromise();
-    const conditions: Record<string, unknown>[] = [
-      { $or: [{ status: 'approved' }, { status: { $exists: false } }] },
-    ];
-    if (search) {
-      const safe = escapeRegex(search.slice(0, 200));
-      conditions.push({
-        $or: [
-          { title: { $regex: safe, $options: 'i' } },
-          { studentName: { $regex: safe, $options: 'i' } },
-          { description: { $regex: safe, $options: 'i' } },
-        ],
-      });
-    }
-    if (topic) {
-      conditions.push({ topic: String(topic).slice(0, 100) });
-    }
-    const filter = conditions.length === 1 ? conditions[0] : { $and: conditions };
-
     const projects = await client
       .db(DB)
       .collection<Project>(COLL)
-      .find(filter)
+      .find({})
       .sort({ createdAt: -1 })
-      .limit(200)
+      .limit(500)
       .toArray();
-
     return NextResponse.json(projects);
   } catch (err) {
     console.error(err);
@@ -62,16 +42,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (!checkAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const body = await request.json();
-
-    // Explicit string cast prevents object injection via JSON body
-    const classPassphrase = typeof body.classPassphrase === 'string' ? body.classPassphrase : '';
-    const correctClassPass = process.env.CLASS_PASSPHRASE;
-    if (correctClassPass && classPassphrase !== correctClassPass) {
-      return NextResponse.json({ error: 'Incorrect class passphrase.' }, { status: 401 });
-    }
-
     const { title, studentName, linkedinUrl, description, topic,
             techStack, aiToolsUsed, repoUrl, videoUrl, imageUrl } = body;
 
@@ -113,12 +88,11 @@ export async function POST(request: NextRequest) {
       videoUrl: videoUrl?.trim() || undefined,
       imageUrl: imageUrl?.trim() || undefined,
       createdAt: new Date(),
-      status: 'pending',
+      status: 'approved',
     };
 
     const client = await clientPromise();
     const result = await client.db(DB).collection<Project>(COLL).insertOne(project);
-
     return NextResponse.json({ ...project, _id: result.insertedId }, { status: 201 });
   } catch (err) {
     console.error(err);

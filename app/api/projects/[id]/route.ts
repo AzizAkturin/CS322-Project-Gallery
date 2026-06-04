@@ -13,7 +13,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       return NextResponse.json({ error: 'Invalid project ID' }, { status: 400 });
     }
 
-    const client = await clientPromise;
+    const client = await clientPromise();
     const project = await client
       .db(DB)
       .collection<Project>(COLL)
@@ -30,14 +30,54 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const passphrase = request.headers.get('x-admin-passphrase') ?? '';
+  const correct = process.env.ADMIN_PASSPHRASE;
+  if (!correct || passphrase !== correct) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { id } = await params;
     if (!ObjectId.isValid(id)) {
       return NextResponse.json({ error: 'Invalid project ID' }, { status: 400 });
     }
 
-    const client = await clientPromise;
+    const client = await clientPromise();
+    const result = await client
+      .db(DB)
+      .collection<Project>(COLL)
+      .findOneAndUpdate(
+        { _id: new ObjectId(id) },
+        { $set: { status: 'approved' } },
+        { returnDocument: 'after' }
+      );
+
+    if (!result) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(result);
+  } catch (err) {
+    console.error('PATCH /api/projects/[id] error:', err);
+    return NextResponse.json({ error: 'Failed to approve project' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const passphrase = request.headers.get('x-admin-passphrase') ?? '';
+  const correct = process.env.ADMIN_PASSPHRASE;
+  if (!correct || passphrase !== correct) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { id } = await params;
+    if (!ObjectId.isValid(id)) {
+      return NextResponse.json({ error: 'Invalid project ID' }, { status: 400 });
+    }
+
+    const client = await clientPromise();
     const result = await client
       .db(DB)
       .collection<Project>(COLL)

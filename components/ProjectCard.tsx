@@ -32,7 +32,7 @@ export default function ProjectCard({ project }: { project: ProjectWithId }) {
           />
         ) : (
           <div className="h-full w-full flex items-center justify-center">
-            <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-400">
+            <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-500">
               No preview image
             </p>
           </div>

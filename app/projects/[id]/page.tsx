@@ -14,7 +14,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   const { id } = await params;
   if (!ObjectId.isValid(id)) notFound();
 
-  const client = await clientPromise;
+  const client = await clientPromise();
   const doc = await client.db('cs322gallery').collection<Project>('projects').findOne({ _id: new ObjectId(id) });
   if (!doc) notFound();
 
@@ -26,7 +26,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   return (
     <div className="max-w-4xl mx-auto px-6 py-12">
       <Link href="/"
-        className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-superwide text-neutral-400 hover:text-neutral-800 transition-colors mb-10">
+        className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-superwide text-neutral-500 hover:text-neutral-800 transition-colors mb-10">
         &larr; Gallery
       </Link>
 
@@ -37,7 +37,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
             sizes="(max-width: 896px) 100vw, 896px" priority />
         ) : (
           <div className="h-full w-full flex items-center justify-center">
-            <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-400">No preview image</p>
+            <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-500">No preview image</p>
           </div>
         )}
       </div>
@@ -53,7 +53,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                   {doc.topic}
                 </span>
               )}
-              <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-400">
+              <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-500">
                 {submitted}
               </p>
             </div>
@@ -145,7 +145,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-400 mb-3">{label}</p>
+      <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-500 mb-3">{label}</p>
       {children}
     </div>
   );

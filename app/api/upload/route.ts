@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(request: NextRequest) {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return NextResponse.json(
-      { error: 'BLOB_READ_WRITE_TOKEN is not configured. Add it to .env.local.' },
+      { error: 'BLOB_READ_WRITE_TOKEN is not configured.' },
       { status: 503 }
     );
   }
@@ -15,13 +15,23 @@ export async function POST(request: NextRequest) {
     const jsonResponse = await handleUpload({
       body,
       request,
-      onBeforeGenerateToken: async () => ({
-        allowedContentTypes: [
-          'image/jpeg', 'image/png', 'image/webp', 'image/gif',
-          'video/mp4', 'video/quicktime', 'video/webm', 'video/mov',
-        ],
-        maximumSizeInBytes: 500 * 1024 * 1024, // 500 MB
-      }),
+      onBeforeGenerateToken: async (_pathname, clientPayload) => {
+        const classPass = process.env.CLASS_PASSPHRASE;
+        const adminPass = process.env.ADMIN_PASSPHRASE;
+        const authorized =
+          (classPass && clientPayload === classPass) ||
+          (adminPass && clientPayload === adminPass);
+        if (!authorized) {
+          throw new Error('Unauthorized: valid passphrase required to upload files.');
+        }
+        return {
+          allowedContentTypes: [
+            'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+            'video/mp4', 'video/quicktime', 'video/webm', 'video/mov',
+          ],
+          maximumSizeInBytes: 500 * 1024 * 1024,
+        };
+      },
     });
     return NextResponse.json(jsonResponse);
   } catch (err) {

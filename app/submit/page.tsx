@@ -8,7 +8,7 @@ import { TOPICS } from '@/lib/topics';
 
 type UploadState = 'idle' | 'uploading' | 'done' | 'error';
 
-function useFileUpload() {
+function useFileUpload(passphrase: string) {
   const [state, setState] = useState<UploadState>('idle');
   const [progress, setProgress] = useState(0);
   const [url, setUrl] = useState('');
@@ -22,6 +22,7 @@ function useFileUpload() {
       const blob = await upload(file.name, file, {
         access: 'public',
         handleUploadUrl: '/api/upload',
+        clientPayload: passphrase,
         onUploadProgress: ({ percentage }) => setProgress(Math.round(percentage)),
       });
       setUrl(blob.url);
@@ -55,10 +56,11 @@ export default function SubmitPage() {
     techStackRaw: '',
     aiToolsUsed: '',
     repoUrl: '',
+    classPassphrase: '',
   });
 
-  const image = useFileUpload();
-  const video = useFileUpload();
+  const image = useFileUpload(form.classPassphrase);
+  const video = useFileUpload(form.classPassphrase);
   const [imagePreview, setImagePreview] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -70,6 +72,12 @@ export default function SubmitPage() {
   async function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!form.classPassphrase.trim()) {
+      setError('Enter the class passphrase before uploading files.');
+      if (imageRef.current) imageRef.current.value = '';
+      return;
+    }
+    setError('');
     setImagePreview(URL.createObjectURL(file));
     await image.uploadFile(file);
   }
@@ -77,6 +85,12 @@ export default function SubmitPage() {
   async function handleVideoChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!form.classPassphrase.trim()) {
+      setError('Enter the class passphrase before uploading files.');
+      if (videoRef.current) videoRef.current.value = '';
+      return;
+    }
+    setError('');
     await video.uploadFile(file);
   }
 
@@ -90,6 +104,10 @@ export default function SubmitPage() {
     }
     if (!form.topic) {
       setError('Please select a topic.');
+      return;
+    }
+    if (!form.classPassphrase.trim()) {
+      setError('Please enter the class passphrase.');
       return;
     }
     if (image.state === 'uploading' || video.state === 'uploading') {
@@ -115,8 +133,7 @@ export default function SubmitPage() {
         try { const b = await res.json(); msg = b.error ?? msg; } catch { /* not JSON */ }
         throw new Error(msg);
       }
-      const project = await res.json();
-      router.push(`/projects/${project._id}`);
+      router.push('/submit/success');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
       setSubmitting(false);
@@ -126,11 +143,11 @@ export default function SubmitPage() {
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">
       <div className="mb-8">
-        <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-400 mb-2">
+        <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-500 mb-2">
           &gt; CS322 / Submit
         </p>
         <h1 className="font-instrument-serif text-4xl text-neutral-900 mb-2">Submit Your Project</h1>
-        <p className="font-sans text-sm text-neutral-500">Add your CS322 final project to the gallery.</p>
+        <p className="font-sans text-sm text-neutral-500">Submit your CS322 final project for review. It will appear in the gallery once approved.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white border border-neutral-200 shadow-card">
@@ -167,7 +184,7 @@ export default function SubmitPage() {
                   className={`h-[36px] px-3 font-mono text-[0.65rem] uppercase tracking-[0.12em] border text-left truncate transition-colors ${
                     form.topic === t
                       ? 'bg-neutral-900 text-white border-neutral-900'
-                      : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-500'
+                      : 'bg-white text-neutral-700 border-neutral-300 hover:border-neutral-700'
                   }`}
                 >
                   {t}
@@ -206,7 +223,7 @@ export default function SubmitPage() {
             {image.state === 'idle' && (
               <button type="button" onClick={() => imageRef.current?.click()}
                 className="w-full border-2 border-dashed border-neutral-200 hover:border-neutral-400 transition-colors py-8 text-center">
-                <p className="font-mono text-[10px] uppercase tracking-superwide text-neutral-400">Click to upload image</p>
+                <p className="font-mono text-[10px] uppercase tracking-superwide text-neutral-500">Click to upload image</p>
               </button>
             )}
             {image.state === 'uploading' && (
@@ -246,7 +263,7 @@ export default function SubmitPage() {
             {video.state === 'idle' && (
               <button type="button" onClick={() => videoRef.current?.click()}
                 className="w-full border-2 border-dashed border-neutral-200 hover:border-neutral-400 transition-colors py-8 text-center">
-                <p className="font-mono text-[10px] uppercase tracking-superwide text-neutral-400">Click to upload video</p>
+                <p className="font-mono text-[10px] uppercase tracking-superwide text-neutral-500">Click to upload video</p>
               </button>
             )}
             {video.state === 'uploading' && (
@@ -267,7 +284,7 @@ export default function SubmitPage() {
                   <p className="font-mono text-[10px] text-neutral-600 truncate max-w-xs">{video.fileName}</p>
                 </div>
                 <button type="button" onClick={() => { video.reset(); if (videoRef.current) videoRef.current.value = ''; }}
-                  className="font-mono text-[10px] uppercase tracking-superwide text-neutral-400 hover:text-neutral-900 transition-colors">
+                  className="font-mono text-[10px] uppercase tracking-superwide text-neutral-500 hover:text-neutral-900 transition-colors">
                   Remove
                 </button>
               </div>
@@ -281,6 +298,14 @@ export default function SubmitPage() {
                 </button>
               </div>
             )}
+          </Field>
+
+          {/* ── Access ── */}
+          <SectionHeader label="Access" />
+
+          <Field label="Class Passphrase" required hint="Ask your instructor for the passphrase">
+            <input name="classPassphrase" type="password" value={form.classPassphrase} onChange={set}
+              placeholder="Enter class passphrase" className="inp" required />
           </Field>
 
         </div>
@@ -321,7 +346,7 @@ export default function SubmitPage() {
 function SectionHeader({ label }: { label: string }) {
   return (
     <div className="px-6 py-3 bg-neutral-50 border-b border-neutral-100">
-      <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-400">{label}</p>
+      <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-500">{label}</p>
     </div>
   );
 }
