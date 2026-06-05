@@ -6,6 +6,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { TOPICS } from '@/lib/topics';
 import { ProjectWithId } from '@/lib/types';
+import { extractYouTubeId } from '@/lib/video';
+import TechStackPicker from '@/components/TechStackPicker';
 
 type Phase = 'gate' | 'dashboard';
 type UploadState = 'idle' | 'uploading' | 'done' | 'error';
@@ -288,12 +290,25 @@ function PendingCard({
   onDelete: () => void;
 }) {
   const tags = (project.techStack ?? []).flatMap((t) => t.split(',').map((s) => s.trim())).filter(Boolean);
+  const ytId = project.videoUrl ? extractYouTubeId(project.videoUrl) : null;
+  const mediaSrc = ytId
+    ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
+    : project.imageUrl ?? null;
 
   return (
     <div className="bg-white border border-neutral-200 overflow-hidden">
-      {project.imageUrl && (
+      {mediaSrc && (
         <div className="relative w-full h-52 bg-neutral-100">
-          <Image src={project.imageUrl} alt={project.title} fill className="object-cover" unoptimized />
+          <Image src={mediaSrc} alt={project.title} fill className="object-cover" unoptimized />
+          {ytId && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="bg-black/50 rounded-full w-10 h-10 flex items-center justify-center">
+                <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M6.79 5.093L11 8 6.79 10.907V5.093z" />
+                </svg>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -334,8 +349,11 @@ function PendingCard({
           </div>
         </div>
 
-        {/* Description */}
+        {/* Tagline + Description */}
         <div>
+          {project.tagline && (
+            <p className="font-sans text-sm italic text-neutral-600 mb-2">{project.tagline}</p>
+          )}
           <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-500 mb-1.5">Description</p>
           <p className="font-sans text-sm text-neutral-700 leading-relaxed whitespace-pre-line">{project.description}</p>
         </div>
@@ -453,9 +471,13 @@ function AdminSubmitForm({ passphrase, onSuccess }: { passphrase: string; onSucc
   const videoRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
-    title: '', studentName: '', linkedinUrl: '', description: '',
-    topic: '', techStackRaw: '', aiToolsUsed: '', repoUrl: '',
+    title: '', studentName: '', linkedinUrl: '', tagline: '', description: '',
+    topic: '', aiToolsUsed: '', repoUrl: '',
   });
+
+  const [techStack, setTechStack] = useState<string[]>([]);
+  const [videoMode, setVideoMode] = useState<'url' | 'upload'>('url');
+  const [videoUrlRaw, setVideoUrlRaw] = useState('');
 
   const image = useFileUpload(passphrase);
   const video = useFileUpload(passphrase);
@@ -495,13 +517,22 @@ function AdminSubmitForm({ passphrase, onSuccess }: { passphrase: string; onSucc
       return;
     }
 
+    const finalVideoUrl =
+      videoMode === 'url'
+        ? videoUrlRaw.trim() || undefined
+        : video.url || undefined;
+
     setSubmitting(true);
     try {
-      const techStack = form.techStackRaw.split(',').map((s) => s.trim()).filter(Boolean);
       const res = await fetch('/api/admin/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-admin-passphrase': passphrase },
-        body: JSON.stringify({ ...form, techStack, imageUrl: image.url || undefined, videoUrl: video.url || undefined }),
+        body: JSON.stringify({
+          ...form,
+          techStack,
+          imageUrl: image.url || undefined,
+          videoUrl: finalVideoUrl,
+        }),
       });
       if (!res.ok) {
         let msg = `Server error (${res.status})`;
@@ -510,7 +541,10 @@ function AdminSubmitForm({ passphrase, onSuccess }: { passphrase: string; onSucc
       }
       const project = await res.json();
       setSuccess(`"${project.title}" added to the gallery.`);
-      setForm({ title: '', studentName: '', linkedinUrl: '', description: '', topic: '', techStackRaw: '', aiToolsUsed: '', repoUrl: '' });
+      setForm({ title: '', studentName: '', linkedinUrl: '', tagline: '', description: '', topic: '', aiToolsUsed: '', repoUrl: '' });
+      setTechStack([]);
+      setVideoUrlRaw('');
+      setVideoMode('url');
       image.reset(); video.reset(); setImagePreview('');
       if (imageRef.current) imageRef.current.value = '';
       if (videoRef.current) videoRef.current.value = '';
@@ -521,6 +555,8 @@ function AdminSubmitForm({ passphrase, onSuccess }: { passphrase: string; onSucc
       setSubmitting(false);
     }
   }
+
+  const ytPreviewId = videoMode === 'url' ? extractYouTubeId(videoUrlRaw) : null;
 
   return (
     <section>
@@ -558,14 +594,17 @@ function AdminSubmitForm({ passphrase, onSuccess }: { passphrase: string; onSucc
               ))}
             </div>
           </Field>
-          <Field label="Description" required>
+          <Field label="Tagline" hint="One-sentence summary shown on the gallery card">
+            <input name="tagline" value={form.tagline} onChange={set} maxLength={200}
+              placeholder="A short, catchy one-liner for your project" className="inp" />
+          </Field>
+          <Field label="Description" required hint="Full explanation — what it does, how it works, what you built">
             <textarea name="description" value={form.description} onChange={set}
               maxLength={2000} rows={4} className="inp resize-none" required />
             <p className="font-mono text-[10px] text-neutral-400 mt-1 text-right">{form.description.length} / 2000</p>
           </Field>
-          <Field label="Tech Stack" hint="Comma-separated">
-            <input name="techStackRaw" value={form.techStackRaw} onChange={set}
-              placeholder="Flask, MongoDB, Docker" className="inp" />
+          <Field label="Tech Stack" hint="Click to select — or type a custom technology and press Enter">
+            <TechStackPicker selected={techStack} onChange={setTechStack} />
           </Field>
           <Field label="AI Tools Used" hint="Optional">
             <textarea name="aiToolsUsed" value={form.aiToolsUsed} onChange={set}
@@ -577,7 +616,100 @@ function AdminSubmitForm({ passphrase, onSuccess }: { passphrase: string; onSucc
             <input name="repoUrl" type="url" value={form.repoUrl} onChange={set}
               placeholder="https://bitbucket.org/..." className="inp" required />
           </Field>
-          <Field label="Project Screenshot" hint="Optional — JPG, PNG, WebP, GIF">
+
+          {/* Demo video — YouTube URL or file upload */}
+          <Field label="Demo Video" hint="Optional — paste a YouTube link or upload an MP4/MOV/WebM file">
+            <div className="flex mb-3 border border-neutral-200 w-fit">
+              <button
+                type="button"
+                onClick={() => { setVideoMode('url'); video.reset(); if (videoRef.current) videoRef.current.value = ''; }}
+                className={`h-7 px-4 font-mono text-[0.65rem] uppercase tracking-[0.1em] transition-colors ${
+                  videoMode === 'url' ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-500 hover:text-neutral-900'
+                }`}
+              >
+                YouTube / URL
+              </button>
+              <button
+                type="button"
+                onClick={() => { setVideoMode('upload'); setVideoUrlRaw(''); }}
+                className={`h-7 px-4 font-mono text-[0.65rem] uppercase tracking-[0.1em] border-l border-neutral-200 transition-colors ${
+                  videoMode === 'upload' ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-500 hover:text-neutral-900'
+                }`}
+              >
+                Upload File
+              </button>
+            </div>
+
+            {videoMode === 'url' ? (
+              <div>
+                <input
+                  type="url"
+                  value={videoUrlRaw}
+                  onChange={(e) => setVideoUrlRaw(e.target.value)}
+                  placeholder="https://youtu.be/... or https://youtube.com/watch?v=..."
+                  className="inp"
+                />
+                {ytPreviewId && (
+                  <div className="mt-2 border border-neutral-200 overflow-hidden relative h-40">
+                    <Image
+                      src={`https://img.youtube.com/vi/${ytPreviewId}/hqdefault.jpg`}
+                      alt="YouTube thumbnail preview"
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-black/60 rounded-full w-10 h-10 flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 16 16">
+                          <path d="M6.79 5.093L11 8 6.79 10.907V5.093z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <input ref={videoRef} type="file" accept="video/*,.mp4,.mov,.webm,.m4v" onChange={handleVideoChange} className="hidden" />
+                {video.state === 'idle' && (
+                  <button type="button" onClick={() => videoRef.current?.click()}
+                    className="w-full border-2 border-dashed border-neutral-200 hover:border-neutral-400 transition-colors py-8 text-center">
+                    <p className="font-mono text-[10px] uppercase tracking-superwide text-neutral-500">Click to upload video</p>
+                  </button>
+                )}
+                {video.state === 'uploading' && (
+                  <div className="border border-neutral-200 p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="font-mono text-[10px] uppercase tracking-superwide text-neutral-500 truncate max-w-xs">{video.fileName}</p>
+                      <span className="font-mono text-[10px] text-neutral-400">{video.progress}%</span>
+                    </div>
+                    <div className="h-1 bg-neutral-100 w-full">
+                      <div className="h-1 bg-brand-500 transition-all" style={{ width: `${video.progress}%` }} />
+                    </div>
+                  </div>
+                )}
+                {video.state === 'done' && (
+                  <div className="border border-neutral-200 p-4 flex items-center justify-between">
+                    <div>
+                      <p className="font-mono text-[9px] uppercase tracking-superwide text-brand-600 mb-0.5">Uploaded</p>
+                      <p className="font-mono text-[10px] text-neutral-600 truncate max-w-xs">{video.fileName}</p>
+                    </div>
+                    <button type="button" onClick={() => { video.reset(); if (videoRef.current) videoRef.current.value = ''; }}
+                      className="font-mono text-[10px] uppercase tracking-superwide text-neutral-500 hover:text-neutral-900 transition-colors">Remove</button>
+                  </div>
+                )}
+                {video.state === 'error' && (
+                  <div className="border border-red-200 bg-red-50 p-3 flex items-center justify-between">
+                    <p className="font-mono text-[10px] text-red-600 uppercase tracking-superwide">Upload failed</p>
+                    <button type="button" onClick={() => { video.reset(); if (videoRef.current) videoRef.current.value = ''; }}
+                      className="font-mono text-[10px] uppercase tracking-superwide text-neutral-500 hover:text-neutral-900 underline">Retry</button>
+                  </div>
+                )}
+              </>
+            )}
+          </Field>
+
+          <Field label="Project Screenshot" hint="Optional — JPG, PNG, WebP, GIF (admin only)">
             <input ref={imageRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
             {image.state === 'idle' && (
               <button type="button" onClick={() => imageRef.current?.click()}
@@ -607,43 +739,6 @@ function AdminSubmitForm({ passphrase, onSuccess }: { passphrase: string; onSucc
               <div className="border border-red-200 bg-red-50 p-3 flex items-center justify-between">
                 <p className="font-mono text-[10px] text-red-600 uppercase tracking-superwide">Upload failed</p>
                 <button type="button" onClick={() => { image.reset(); if (imageRef.current) imageRef.current.value = ''; }}
-                  className="font-mono text-[10px] uppercase tracking-superwide text-neutral-500 hover:text-neutral-900 underline">Retry</button>
-              </div>
-            )}
-          </Field>
-          <Field label="Demo Video" hint="Optional — MP4, MOV, WebM (up to 500 MB)">
-            <input ref={videoRef} type="file" accept="video/*" onChange={handleVideoChange} className="hidden" />
-            {video.state === 'idle' && (
-              <button type="button" onClick={() => videoRef.current?.click()}
-                className="w-full border-2 border-dashed border-neutral-200 hover:border-neutral-400 transition-colors py-8 text-center">
-                <p className="font-mono text-[10px] uppercase tracking-superwide text-neutral-500">Click to upload video</p>
-              </button>
-            )}
-            {video.state === 'uploading' && (
-              <div className="border border-neutral-200 p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="font-mono text-[10px] uppercase tracking-superwide text-neutral-500 truncate max-w-xs">{video.fileName}</p>
-                  <span className="font-mono text-[10px] text-neutral-400">{video.progress}%</span>
-                </div>
-                <div className="h-1 bg-neutral-100 w-full">
-                  <div className="h-1 bg-brand-500 transition-all" style={{ width: `${video.progress}%` }} />
-                </div>
-              </div>
-            )}
-            {video.state === 'done' && (
-              <div className="border border-neutral-200 p-4 flex items-center justify-between">
-                <div>
-                  <p className="font-mono text-[9px] uppercase tracking-superwide text-brand-600 mb-0.5">Uploaded</p>
-                  <p className="font-mono text-[10px] text-neutral-600 truncate max-w-xs">{video.fileName}</p>
-                </div>
-                <button type="button" onClick={() => { video.reset(); if (videoRef.current) videoRef.current.value = ''; }}
-                  className="font-mono text-[10px] uppercase tracking-superwide text-neutral-500 hover:text-neutral-900 transition-colors">Remove</button>
-              </div>
-            )}
-            {video.state === 'error' && (
-              <div className="border border-red-200 bg-red-50 p-3 flex items-center justify-between">
-                <p className="font-mono text-[10px] text-red-600 uppercase tracking-superwide">Upload failed</p>
-                <button type="button" onClick={() => { video.reset(); if (videoRef.current) videoRef.current.value = ''; }}
                   className="font-mono text-[10px] uppercase tracking-superwide text-neutral-500 hover:text-neutral-900 underline">Retry</button>
               </div>
             )}

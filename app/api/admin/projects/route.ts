@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
   }
   try {
     const body = await request.json();
-    const { title, studentName, linkedinUrl, description, topic,
+    const { title, studentName, linkedinUrl, tagline, description, topic,
             techStack, aiToolsUsed, repoUrl, videoUrl, imageUrl } = body;
 
     if (typeof title !== 'string' || typeof studentName !== 'string' ||
@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
       title: title.trim().slice(0, 200),
       studentName: studentName.trim().slice(0, 200),
       linkedinUrl: linkedinUrl?.trim() || undefined,
+      tagline: typeof tagline === 'string' ? tagline.trim().slice(0, 200) || undefined : undefined,
       description: description.trim().slice(0, 5000),
       topic: typeof topic === 'string' ? topic.trim().slice(0, 100) || 'Other' : 'Other',
       techStack: safeStack,

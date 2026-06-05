@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ProjectWithId } from '@/lib/types';
 import { topicBadge } from '@/lib/topics';
+import { extractYouTubeId, isDirectVideoUrl } from '@/lib/video';
 
 function parseTags(stack: string[]): string[] {
   return stack.flatMap((t) => t.split(',').map((s) => s.trim())).filter(Boolean);
@@ -15,6 +16,9 @@ export default function ProjectCard({ project }: { project: ProjectWithId }) {
   const visibleTags = tags.slice(0, 5);
   const extraCount = tags.length - visibleTags.length;
 
+  const ytId = project.videoUrl ? extractYouTubeId(project.videoUrl) : null;
+  const hasDirectVideo = !ytId && project.videoUrl ? isDirectVideoUrl(project.videoUrl) : false;
+
   return (
     <Link
       href={`/projects/${id}`}
@@ -22,7 +26,33 @@ export default function ProjectCard({ project }: { project: ProjectWithId }) {
     >
       {/* Thumbnail */}
       <div className="relative h-[210px] bg-neutral-100 border-b border-neutral-200 overflow-hidden">
-        {project.imageUrl ? (
+        {ytId ? (
+          <>
+            <Image
+              src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`}
+              alt={project.title}
+              fill
+              className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              unoptimized
+            />
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="bg-black/60 rounded-full w-12 h-12 flex items-center justify-center">
+                <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M6.79 5.093L11 8 6.79 10.907V5.093z" />
+                </svg>
+              </div>
+            </div>
+          </>
+        ) : hasDirectVideo ? (
+          <div className="h-full w-full flex flex-col items-center justify-center bg-neutral-800 gap-2">
+            <svg className="w-8 h-8 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+            <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-500">Video Demo</p>
+          </div>
+        ) : project.imageUrl ? (
           <Image
             src={project.imageUrl}
             alt={project.title}
@@ -33,7 +63,7 @@ export default function ProjectCard({ project }: { project: ProjectWithId }) {
         ) : (
           <div className="h-full w-full flex items-center justify-center">
             <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-500">
-              No preview image
+              No preview
             </p>
           </div>
         )}
@@ -60,9 +90,9 @@ export default function ProjectCard({ project }: { project: ProjectWithId }) {
           {project.title}
         </h2>
 
-        {/* Description */}
+        {/* Tagline / description */}
         <p className="font-sans text-[0.9rem] leading-snug text-neutral-600 italic line-clamp-2">
-          {project.description}
+          {project.tagline || project.description}
         </p>
 
         {/* Tech tags */}

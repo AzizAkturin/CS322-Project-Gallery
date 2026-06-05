@@ -5,6 +5,7 @@ export interface Project {
   title: string;
   studentName: string;
   linkedinUrl?: string;
+  tagline?: string;
   description: string;
   topic: string;
   techStack: string[];
