@@ -46,6 +46,7 @@ function useFileUpload(passphrase: string) {
 
 export default function SubmitPage() {
   const router = useRouter();
+  const imageRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
@@ -64,12 +65,27 @@ export default function SubmitPage() {
   const [videoMode, setVideoMode] = useState<'url' | 'upload'>('url');
   const [videoUrlRaw, setVideoUrlRaw] = useState('');
 
+  const image = useFileUpload(form.classPassphrase);
   const video = useFileUpload(form.classPassphrase);
+  const [imagePreview, setImagePreview] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   function set(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  }
+
+  async function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!form.classPassphrase.trim()) {
+      setError('Enter the class passphrase before uploading files.');
+      if (imageRef.current) imageRef.current.value = '';
+      return;
+    }
+    setError('');
+    setImagePreview(URL.createObjectURL(file));
+    await image.uploadFile(file);
   }
 
   async function handleVideoChange(e: ChangeEvent<HTMLInputElement>) {
@@ -100,8 +116,8 @@ export default function SubmitPage() {
       setError('Please enter the class passphrase.');
       return;
     }
-    if (video.state === 'uploading') {
-      setError('Please wait for the upload to finish.');
+    if (image.state === 'uploading' || video.state === 'uploading') {
+      setError('Please wait for uploads to finish.');
       return;
     }
 
@@ -118,6 +134,7 @@ export default function SubmitPage() {
         body: JSON.stringify({
           ...form,
           techStack,
+          imageUrl: image.url || undefined,
           videoUrl: finalVideoUrl,
         }),
       });
@@ -215,6 +232,46 @@ export default function SubmitPage() {
           <Field label="Repository URL" required>
             <input name="repoUrl" type="url" value={form.repoUrl} onChange={set}
               placeholder="https://bitbucket.org/your-name/your-project" className="inp" required />
+          </Field>
+
+          {/* Screenshot upload */}
+          <Field label="Project Screenshot" hint="Optional — JPG, PNG, WebP, GIF">
+            <input ref={imageRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+            {image.state === 'idle' && (
+              <button type="button" onClick={() => imageRef.current?.click()}
+                className="w-full border-2 border-dashed border-neutral-200 hover:border-neutral-400 transition-colors py-8 text-center">
+                <p className="font-mono text-[10px] uppercase tracking-superwide text-neutral-500">Click to upload image</p>
+              </button>
+            )}
+            {image.state === 'uploading' && (
+              <div className="border border-neutral-200 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-mono text-[10px] uppercase tracking-superwide text-neutral-500 truncate max-w-xs">{image.fileName}</p>
+                  <span className="font-mono text-[10px] text-neutral-400">{image.progress}%</span>
+                </div>
+                <div className="h-1 bg-neutral-100 w-full">
+                  <div className="h-1 bg-brand-500 transition-all" style={{ width: `${image.progress}%` }} />
+                </div>
+              </div>
+            )}
+            {image.state === 'done' && imagePreview && (
+              <div className="relative border border-neutral-200 overflow-hidden">
+                <Image src={imagePreview} alt="Preview" width={600} height={300} className="w-full h-48 object-cover" unoptimized />
+                <button type="button" onClick={() => { image.reset(); setImagePreview(''); if (imageRef.current) imageRef.current.value = ''; }}
+                  className="absolute top-2 right-2 bg-neutral-900/70 hover:bg-neutral-900 text-white font-mono text-xs w-7 h-7 flex items-center justify-center transition-colors">
+                  &times;
+                </button>
+              </div>
+            )}
+            {image.state === 'error' && (
+              <div className="border border-red-200 bg-red-50 p-3 flex items-center justify-between">
+                <p className="font-mono text-[10px] text-red-600 uppercase tracking-superwide">Upload failed</p>
+                <button type="button" onClick={() => { image.reset(); if (imageRef.current) imageRef.current.value = ''; }}
+                  className="font-mono text-[10px] uppercase tracking-superwide text-neutral-500 hover:text-neutral-900 underline">
+                  Retry
+                </button>
+              </div>
+            )}
           </Field>
 
           {/* Demo video — YouTube URL or file upload */}
@@ -334,7 +391,7 @@ export default function SubmitPage() {
           )}
           <button
             type="submit"
-            disabled={submitting || video.state === 'uploading'}
+            disabled={submitting || image.state === 'uploading' || video.state === 'uploading'}
             className="w-full bg-brand-700 hover:bg-brand-600 disabled:bg-neutral-300 text-white font-mono text-[10px] uppercase tracking-superwide py-3 transition-colors flex items-center justify-center gap-2"
           >
             {submitting ? (

@@ -23,9 +23,8 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   const ytId = doc.videoUrl ? extractYouTubeId(doc.videoUrl) : null;
   const hasDirectVideo = !ytId && doc.videoUrl ? isDirectVideoUrl(doc.videoUrl) : false;
 
-  const heroSrc = ytId
-    ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
-    : doc.imageUrl ?? null;
+  // Uploaded screenshot takes priority; fall back to YouTube thumbnail
+  const heroSrc = doc.imageUrl ?? (ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null);
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-10">

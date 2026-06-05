@@ -24,9 +24,17 @@ export default function ProjectCard({ project }: { project: ProjectWithId }) {
       href={`/projects/${id}`}
       className="group flex flex-col bg-white border border-neutral-200 shadow-card transition-all duration-200 hover:border-neutral-900 hover:shadow-card-hover hover:-translate-y-0.5"
     >
-      {/* Thumbnail */}
+      {/* Thumbnail — priority: uploaded image > YouTube thumbnail > video placeholder > fallback */}
       <div className="relative h-[210px] bg-neutral-100 border-b border-neutral-200 overflow-hidden">
-        {ytId ? (
+        {project.imageUrl ? (
+          <Image
+            src={project.imageUrl}
+            alt={project.title}
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          />
+        ) : ytId ? (
           <>
             <Image
               src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`}
@@ -52,14 +60,6 @@ export default function ProjectCard({ project }: { project: ProjectWithId }) {
             </svg>
             <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-500">Video Demo</p>
           </div>
-        ) : project.imageUrl ? (
-          <Image
-            src={project.imageUrl}
-            alt={project.title}
-            fill
-            className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          />
         ) : (
           <div className="h-full w-full flex items-center justify-center">
             <p className="font-mono text-[9px] uppercase tracking-superwide text-neutral-500">
